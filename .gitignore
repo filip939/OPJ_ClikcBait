@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+# sirovi snapshotovi mogu biti veliki; finalni podaci se verzionišu
+data/raw/*.html

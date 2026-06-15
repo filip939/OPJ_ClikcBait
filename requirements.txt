@@ -1,0 +1,8 @@
+requests
+beautifulsoup4
+lxml
+feedparser
+pandas
+rapidfuzz
+# opciono, samo ako neki izvor zahteva JS rendering:
+# playwright

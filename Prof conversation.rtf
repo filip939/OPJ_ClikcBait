@@ -1,0 +1,36 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2869
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 Po\'9atovani profesore Batanovi\uc0\u263 u,Hteli bismo da prijavimo grupu za projekat iz Obrade prirodnih jezika. Znamo da je u postavci navedeno troje ili vi\'9ae \u269 lanova, ali po\'9ato nas je dvojica, nadamo se da postoji mogu\u263 nost da napravimo izuzetak i radimo u dvo\u269 lanom timu. Naravno, obojica bismo radili sve faze projekta.  \u268 lanovi grupe:Filip Nikoli\u263 , 25/3234Danilo Nikoli\u263 , 25/3235Detalji predloga:  NLP zadatak: Detekcija klikbejt naslova (binarna klasifikacija).  Domen: Naslovi sa doma\u263 ih internet portala i medija uop\'9ateno.  Izvori: Naslovi prikupljeni skrapovanjem i preko RSS feed-ova sa razli\u269 itih doma\u263 ih sajtova.  Procena veli\u269 ine skupa: Oko 1000\'961200 jedinstvenih naslova (od kojih bismo 10% izdvojili za kalibraciju anotatora).  Modeli koje planiramo da razmatramo:Baseline: Logisti\u269 ka regresija i SVM.  Enkoderski: Fino pode\'9aavanje modela BERTi\u263  i mBERT.  Dekoderski: Evaluacija modela ChatGPT i Gemini kroz prompt engineering (upore\u273 ivanje srpskog i engleskog prompta).  Javite nam da li su tema i sastav grupe u redu kako bismo mogli da krenemo sa radom.  Pozdrav,Filip Nikoli\u263 Danilo Nikoli\u263 \
+\
+\
+\
+\
+Po\'9atovani kolega,\
+\
+U redu je da radite projekat u paru, ali znajte da \uc0\u263 e vam tako biti te\'9ee nego da imate malo ve\u263 u grupu, obim posla se ne mo\'9ee podesiti na isti nivo ako samo dvoje rade projekat.\
+\
+\'8ato se teme ti\uc0\u269 e, valjalo bi da prvo malo specificirate \'9ata ta\u269 no sve podrazumevate pod klikbejt naslovima. Naime, ne bi valjalo da se ceo task svede na detekciju da li se u naslovu javlja uzvi\u269 nik, ili naslov po\u269 inje sa \'93Ne\u263 ete verovati\'94 ili se zavr\'9aava sa \'93a onda se desilo ovo\'94.\
+Pored toga, trebalo bi da odaberete jedan tematski domen u okviru koga biste radili (npr. politi\uc0\u269 ke vesti, sportske vesti, ili ne\'9ato sli\u269 no).\
+Tako\uc0\u273 e, broj podataka bi bilo neophodno makar duplirati, tj. imati 1000 do 1200 jedinstvenih naslova po klasi, po\'9ato se radi o kratkim tekstovima.\
+\
+\'8ato se izbora modela ti\uc0\u269 e, preporu\u269 io bih da jedan od odabranih baseline modela (LR ili SVM) zamenite sa naivnim Bajesovim klasifikatorom. Trebalo bi specificirati i koje vrste pretprocesiranja nameravate da razmotrite sa linearnim klasifikatorima.\
+Tako\uc0\u273 e mislim da je sasvim dovoljno da evaluirate samo jedan dekoderski model.\
+\
+Srda\uc0\u269 an pozdrav,\
+Vuk Batanovi\uc0\u263 \
+\
+\
+Po\'9atovani profesore,Hvala Vam na odobrenju za rad u paru i na savetima. Usvojili smo sve Va\'9ae sugestije i precizirali plan rada.Za tematski domen smo izabrali isklju\uc0\u269 ivo sportske vesti na doma\u263 im sajtovima poput Mozzart Sporta, Sport Kluba i B92. \'8ato se ti\u269 e definicije klikbejta, u uputstvu za anotaciju \u263 emo pored o\u269 iglednih fraza obuhvatiti i suptilnije manipulacije, kao \'9ato je namerno izostavljanje klju\u269 nih informacija radi stvaranja kognitivnog jaza, preuveli\u269 avanje va\'9enosti doga\u273 aja i ve\'9ata\u269 ko stvaranje emocionalnog naboja.Prikupi\u263 emo balansiran skup od ukupno 2200 jedinstvenih naslova, odnosno po 1100 za klikbejt i regularnu klasu, od \u269 ega \u263 emo 10% izdvojiti za kalibraciju anotatora.  Zamenili smo SVM Naivnim Bajesom, pa \u263 e nam baseline modeli biti Logisti\u269 ka regresija i NB. Kod njih \u263 emo testirati efekte pretprocesiranja kroz normalizaciju na mala slova, uklanjanje interpunkcije, izbacivanje stop-re\u269 i za srpski jezik i lematizaciju ili stemovanje. Za enkoderske modele zadr\'9eavamo fino pode\'9aavanje BERTi\u263 a i mBERT-a, dok \u263 emo od dekoderskih modela evaluirati samo ChatGPT kroz upore\u273 ivanje srpskih i engleskih promptova.  Javite nam da li je ovaj plan u redu da mo\'9eemo da krenemo sa prikupljanjem podataka.  Pozdrav,Filip Nikoli\u263 \
+\
+\
+Po\'9atovani kolega,\
+\
+Sve dogovoreno, jedino predla\'9eem da umesto stop-re\uc0\u269 i razmotrite TF/IDF/TF-IDF ponderisanje.\
+\
+Srda\uc0\u269 an pozdrav,\
+Vuk Batanovi\uc0\u263 }
