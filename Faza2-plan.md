@@ -96,3 +96,80 @@ Raspodela klasa, dužina naslova po klasi, učestalost pod-tipova (KJ/PV/EN/SF),
 ## Reproducibilnost
 - `make_splits.py` koristi fiksni seed (42) → svako dobije isti raspored.
 - Sve datoteke UTF-8 (sa BOM radi Excel/Numbers). `iaa.py` čita nazad sa `utf-8-sig`.
+
+---
+
+# RUNBOOK — kako koristiti sve alate (čitaj ovo prvo u novoj sesiji)
+
+> Postavljeno je sve za Fazu 2. Anotacija se radi kroz **web aplikaciju**
+> `annotator/app.py` (zero-dependency, čist Python stdlib). Skripte za
+> zatvaranje faze su u `src/annotation/`. Podaci su u `data/`.
+
+## A) Datoteke (šta je šta)
+
+| Datoteka | Sadržaj |
+|---|---|
+| `data/annotated/filip_glavna.csv` | Filipova polovina, **1497** (prvih 110 = kalibracioni) |
+| `data/annotated/danilo_glavna.csv` | Danilova polovina, **1497** |
+| `data/calibration/filip_unakrsna.csv` | 110 Danilovih kalib. naslova — **Filip** ih anotira (za kappa) |
+| `data/calibration/danilo_unakrsna.csv` | 110 Filipovih kalib. naslova — **Danilo** ih anotira |
+| `annotation/guidelines.md` | uputstvo: definicija klikbejta (KJ/PV/EN/SF), primeri |
+
+Kolone u CSV-u: `id, naslov, labela, podtip, napomena`. Anotacija upisuje
+`labela` = `1` (klikbejt) ili `0` (nije). UTF-8 sa BOM, sva polja pod navodnicima.
+
+## B) Anotacija — web aplikacija
+
+```bash
+.venv/bin/python annotator/app.py        # pokreni
+# otvori http://localhost:8000 ; Ctrl+C za stop
+```
+- Prva stranica: izbor **FILIP** / **DANILO** + brojač progresa
+  (`Klikbejt: N`, `Nije klikbejt: N`, `Ukupno: N / 3214`; 3214 = 2×1607 svih klikova).
+- Posle izbora: pitanje „Da li je ovaj naslov clickbait?", naslov veliko,
+  dva dugmeta: **JESTE** (zeleno, =1), **NIJE** (crveno, =0).
+- Tastatura za brzinu: **→ / 1** = JESTE, **← / 0** = NIJE, **U** = nazad (undo).
+- **Redosled posluživanja:** prvo 220 kalibracionih (unakrsna 110 + vrh glavne 110),
+  pa ostatak. Tako su kalibracioni naslovi prvih 220 → može IAA pre nego se nastavi.
+
+### Rad iz više sesija (radi automatski)
+- Svaki klik se **odmah upisuje** u CSV. Pri pokretanju app **nastavlja od prvog
+  neoznačenog** i ništa ne briše. Možeš stati i nastaviti bilo kad (danas 100,
+  sutra 300…). Brojač se rekonstruiše iz datoteka.
+
+### ⚠️ Pravilo da se ne izgubi rad
+- Za anotaciju pokreći **samo `annotator/app.py`**.
+- **NE pokretati `make_splits.py`** ponovo — regeneriše PRAZNE datoteke.
+  (Ima zaštitu: ako postoje labele, odbija da prepiše osim sa `--force`.)
+
+## C) Zatvaranje Faze 2 (kad je klasifikacija gotova)
+
+Redosledom:
+```bash
+# 1) IAA / Cohen's kappa — POSLE prvih 220 (kalibracioni deo)
+.venv/bin/python src/annotation/iaa.py
+#    kappa >= 0.6 -> nastavi;  < 0.6 -> doradi guidelines.md i ponovi tih 220
+
+# 2) Spajanje + balansiranje (kad su SVE labele unete)
+.venv/bin/python src/annotation/build_dataset.py            # cilj 1100/1100
+#    -> data/annotated/dataset_full.csv (sve, nebalansirano)
+#    -> data/annotated/dataset.tsv      (BALANSIRANO, 'naslov<TAB>labela') = ulaz za Fazu 3
+#    ako klasa ima < 1100, uzme sve i upozori (doskupljanje ručno, po dogovoru)
+
+# 3) Deskriptivna statistika (za dokumentaciju, Faza 4)
+.venv/bin/python src/annotation/stats.py
+#    -> ispis + results/faza2_statistika.txt
+```
+
+## D) Skripte (u `src/annotation/`)
+| Skripta | Namena |
+|---|---|
+| `make_splits.py` | (već izvršeno) napravi podelu 50/50 + kalibraciju. NE pokretati ponovo. |
+| `iaa.py` | Cohen's kappa + % slaganja + lista neslaganja iz kalibracije |
+| `build_dataset.py` | spaja polovine, balansira na 1100/1100, izvozi `dataset.tsv` |
+| `stats.py` | deskriptivna statistika finalnih oznaka |
+
+## E) Posle Faze 2
+- Kad postoji `data/annotated/dataset.tsv` (balansiran) + `results/faza2_statistika.txt`
+  → Faza 2 je gotova. Folder `annotator/` se može obrisati (podaci ostaju u `data/`).
+- Sledeće: **Faza 3** (LR + NB → BERTić + mBERT → ChatGPT) — vidi `Plan-izrade-projekta.md`.
