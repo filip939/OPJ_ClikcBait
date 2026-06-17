@@ -73,8 +73,11 @@ def run_cv(model_key, epochs_list, n_folds, batch_size, lr, max_len, seed,
     import torch
     from datasets import Dataset
     from sklearn.model_selection import StratifiedKFold
+    import inspect
+
     from transformers import (AutoModelForSequenceClassification,
-                              AutoTokenizer, Trainer, TrainingArguments)
+                              AutoTokenizer, DataCollatorWithPadding, Trainer,
+                              TrainingArguments)
 
     hf_id = HF_IDS[model_key]
     texts, labels = common.load_dataset()
@@ -118,11 +121,19 @@ def run_cv(model_key, epochs_list, n_folds, batch_size, lr, max_len, seed,
                 report_to=[],
                 fp16=torch.cuda.is_available(),
             )
-            trainer = Trainer(
+            tr_kwargs = dict(
                 model=model, args=targs, train_dataset=ds_tr,
                 eval_dataset=ds_te, compute_metrics=compute_metrics,
-                tokenizer=tokenizer,
+                data_collator=DataCollatorWithPadding(tokenizer),
             )
+            # 'tokenizer=' je u novijim transformers verzijama preimenovan u
+            # 'processing_class=' (stari naziv → TypeError). Biramo po verziji.
+            _params = inspect.signature(Trainer.__init__).parameters
+            if "processing_class" in _params:
+                tr_kwargs["processing_class"] = tokenizer
+            elif "tokenizer" in _params:
+                tr_kwargs["tokenizer"] = tokenizer
+            trainer = Trainer(**tr_kwargs)
             t0 = time.time()
             trainer.train()
             m = trainer.evaluate()
