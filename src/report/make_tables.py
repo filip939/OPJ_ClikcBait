@@ -118,7 +118,7 @@ def gen_decoder():
     head = ["Varijanta", "Jezik", "Shots", "F1$_{kb}$", "Acc.", "P$_{kb}$",
             "R$_{kb}$"]
     body = [[r.get(c, "—") for c in cols] for r in rows]
-    write(out, latex_table("Dekoderski LLM (ChatGPT) --- SR vs EN, zero/few-shot.",
+    write(out, latex_table("Dekoderski LLM (Claude) --- SR vs EN, zero/few-shot.",
                            "tab:decoder", head, body, colspec="lllrrrr",
                            note="Evaluacija na celom skupu."))
 
@@ -152,7 +152,7 @@ def gen_poredjenje():
     d = read_csv(RESULTS / "decoder_results.csv")
     if d:
         x = _best(d)
-        body.append([f"ChatGPT ({x.get('variant')})", x.get("f1_kb"),
+        body.append([f"Claude ({x.get('variant')})", x.get("f1_kb"),
                      x.get("accuracy"), x.get("roc_auc", "—")])
     if not body:
         write(out, placeholder("Uporedni pregled modela.", "tab:poredjenje",

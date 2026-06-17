@@ -1,10 +1,12 @@
 \begin{table}[H]\centering
-\caption{Dekoderski model --- rezultati.}\label{tab:decoder}
-\begin{tabular}{l}
+\caption{Dekoderski LLM (Claude) --- SR vs EN, zero/few-shot.}\label{tab:decoder}
+\begin{tabular}{lllrrrr}
 \toprule
-Status \\
+Varijanta & Jezik & Shots & F1$_{kb}$ & Acc. & P$_{kb}$ & R$_{kb}$ \\
 \midrule
-Pokreni Fazu 3c (chatgpt\_eval.py). \\
+en\_zero\_def & en & zero & 0.715 & 0.691 & 0.664 & 0.775 \\
+sr\_zero\_def & sr & zero & 0.710 & 0.695 & 0.676 & 0.748 \\
 \bottomrule
 \end{tabular}
+\\[2pt]\footnotesize Evaluacija na celom skupu.
 \end{table}

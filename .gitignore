@@ -16,3 +16,11 @@ results/decoder_cache/
 # Tajne (API ključevi) — NIKAD u git!
 .env
 secrets/
+
+# LaTeX međufajlovi (build artefakti) — .tex/.bib/.pdf ostaju
+report/*.aux
+report/*.bbl
+report/*.blg
+report/*.log
+report/*.out
+report/*.toc

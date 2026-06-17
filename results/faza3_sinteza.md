@@ -17,6 +17,9 @@
 
 (Dekoder vraća tvrdu odluku 0/1 → nema ROC-AUC.)
 
+> \* BERTić „3–4 epohe": F1 je identičan u obe epohe (0.703); accuracy (0.704) je iz
+> epohe 3, a ROC-AUC (0.788) iz epohe 4 — red prikazuje najbolju vrednost po metrici.
+
 ## Glavni nalazi
 
 1. **Svi modeli nadmašuju baseline.** Najslabiji transformer (mBERT, F1 0.690) je

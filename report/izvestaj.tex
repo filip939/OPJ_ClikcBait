@@ -6,6 +6,7 @@
 % ============================================================================
 \documentclass[11pt,a4paper]{article}
 
+\usepackage{lmodern}            % vektorski T1 fontovi (bez bitmap/PK, selektabilan tekst)
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage[serbian]{babel}     % srpski, latinica
@@ -33,10 +34,18 @@
 \maketitle
 \begin{abstract}
 \noindent
-% TODO: 5--8 rečenica — zadatak, domen (sportske vesti, SportKlub), pristup
-% (baseline LR/NB, enkoderski BERTić/mBERT, dekoderski ChatGPT), ključni rezultat.
-Sažetak rada. Predstavljamo binarnu klasifikaciju klikbejt naspram regularnih
-sportskih naslova na srpskom jeziku\dots
+Rad se bavi binarnom klasifikacijom sportskih naslova na srpskom jeziku na
+\emph{klikbejt} i \emph{regularne}. Skup od 2200 naslova (1100/1100) prikupljen je
+sa jednog izvora (portal SportKlub) i nezavisno anotiran od dva člana tima, uz
+međuanotatorsku saglasnost Cohen's $\kappa = 0{,}640$. Upoređena su tri tipa
+pristupa: osnovni modeli (logistička regresija i naivni Bajes nad TF/IDF/TF-IDF
+obeležjima), enkoderski jezički modeli (monolingvalni BERTić i višejezični mBERT,
+fino podešeni) i dekoderski jezički model (Claude, bez fino podešavanja, zero-shot).
+Svi modeli su nadmašili osnovnu liniju; najbolju ukupnu tačnost i kalibrisane
+verovatnoće dao je BERTić (tačnost 0{,}704, ROC-AUC 0{,}788), dok je dekoderski
+model bez ijednog primera za obuku postigao najviši F1 na klikbejt klasi (0{,}715).
+Rezultati pokazuju da kontekstualni modeli znatno bolje hvataju suptilni klikbejt
+od pristupa zasnovanih na vreći reči.
 \end{abstract}
 
 \tableofcontents
@@ -44,77 +53,196 @@ sportskih naslova na srpskom jeziku\dots
 
 % ===========================================================================
 \section{Uvod}\label{sec:uvod}
-% TODO: zadatak (binarna klasifikacija klikbejt/regularan), motivacija,
-% definicija klikbejta u sportskom domenu (kognitivni jaz, preuveličavanje,
-% emocionalni naboj, senzacionalističke fraze). Kratak pregled rada.
+Klikbejt (engl.\ \emph{clickbait}) je naslov koji je oblikovan tako da navede
+čitaoca na klik manipulacijom, a ne poštenim saopštavanjem vesti~\cite{potthast2016clickbait,chakraborty2016stopclickbait}. U sportskom
+novinarstvu je posebno čest jer se rutinski događaji (transferi, izjave, rezultati)
+lako pakuju kao senzacija. Cilj ovog projekta je \textbf{binarna klasifikacija}
+sportskih naslova na klikbejt (oznaka 1) i regularne (oznaka 0), uz uporednu
+analizu tri porodice modela: klasičnih linearnih klasifikatora, fino podešenih
+enkoderskih transformera i dekoderskog (generativnog) jezičkog modela u režimu bez
+obuke. Rad prati četiri faze: prikupljanje podataka, anotaciju, obučavanje i
+evaluaciju modela, te dokumentaciju. U nastavku se opisuje svaka faza, daje
+deskriptivna statistika skupa i uporedna analiza rezultata.\footnote{Projekat
+radi dvočlana grupa, uz izričito odobrenje predavača za rad u paru.}
 
 \subsection{Definicija klikbejta}
-% prepisati suštinu iz annotation/guidelines.md
+Naslov ocenjujemo \emph{sam za sebe}, onako kako ga čitalac vidi u listi vesti, bez
+otvaranja članka. Vodeće pitanje je: da li naslov \emph{namerno} manipuliše čitaocem
+da klikne --- uskraćivanjem informacije, preuveličavanjem ili veštačkom emocijom ---
+umesto da pošteno saopšti vest. Razlikujemo četiri mehanizma manipulacije:
+\begin{itemize}
+  \item \textbf{(KJ) Kognitivni jaz} --- namerno izostavljanje ključne informacije
+    (ko/šta/koliko/ishod), npr.\ \enquote{Real ozvaničio veliko pojačanje} (ne kaže koga).
+  \item \textbf{(PV) Preuveličavanje važnosti} --- rutinski događaj predstavljen kao
+    senzacija, npr.\ \enquote{Bomba iz Italije} za običan transfer.
+  \item \textbf{(EN) Veštački emocionalni naboj} --- napetost ili ogorčenje koje ne
+    proizilazi iz vesti, npr.\ \enquote{Skandal u Parizu}.
+  \item \textbf{(SF) Senzacionalistička fraza / otvorena forma} --- nedovršene
+    rečenice s tri tačke, retorička pitanja, \enquote{nećete verovati}.
+\end{itemize}
+Za oznaku 1 dovoljan je jedan mehanizam. Naprotiv, uzvičnik, velika slova ili
+stvarno velika vest rečena direktno (\enquote{Real ozvaničio Mbapea}) \emph{ne} čine
+naslov klikbejtom. Ključni test: ako posle čitanja naslova znaš šta se desilo,
+naslov je verovatno regularan.
 
 % ===========================================================================
 \section{Faza 1 --- Prikupljanje podataka}\label{sec:faza1}
-% Izvor iz Faza1-plan.md. Radimo SAMO sa SportKlub (WP REST API).
-% TODO: izvor i kriterijumi, tehnika (REST API/scraping), polja metapodataka,
-% deduplikacija (egzaktna + near-duplicate), UTF-8, finalni broj naslova.
+\textbf{Izvor.} Podaci su prikupljeni sa portala \textbf{SportKlub} preko njegovog
+WordPress REST API-ja (arhiva od oko 449\,000 članaka). U prijavi su pomenuta tri
+izvora (Mozzart Sport, SportKlub, B92), ali smo se opredelili za \emph{jedan} izvor.
+Postavka zahteva jedan tematski domen (sportske vesti), a ne određeni broj izvora;
+time što obe klase (klikbejt i regularan) dolaze sa istog portala, model uči stvarni
+klikbejt signal, a ne stil portala. Ovo je svesno odstupanje od prijave i ovde se
+eksplicitno obrazlaže.
+
+\textbf{Tehnika i metapodaci.} Naslovi su povučeni programski preko REST API-ja
+(uz \texttt{requests} i ograničavanje učestalosti zahteva). Za svaki naslov beleže
+se metapodaci: jedinstveni \texttt{id}, tekst naslova (UTF-8), izvor, puni
+\texttt{url} članka, datum objave, rubrika i datum prikupljanja. Time je ispunjen
+zahtev da se zabeleži URL/jedinstveni identifikator izvora.
+
+\textbf{Čišćenje i deduplikacija.} Sirovo je prikupljen višak (~3000--4000 naslova)
+da bi se posle anotacije mogao izbalansirati skup. Sprovedena je egzaktna
+deduplikacija (identičan tekst) i približna deduplikacija (engl.\ \emph{near-duplicate},
+uz \texttt{rapidfuzz}) radi uklanjanja gotovo istih naslova. Finalni skup za Fazu 3
+je balansiran na \textbf{2200 naslova (1100 klikbejt / 1100 regularan)}, sačuvan u
+UTF-8 tekstualnom formatu \texttt{dataset.tsv} (kolone \texttt{naslov}\,$\to$\,\texttt{labela}).
+Format TSV je standardni UTF-8 tekstualni format za klasifikaciju teksta i odgovara
+zahtevu za \enquote{UTF-8 TXT}.
 
 % ===========================================================================
 \section{Faza 2 --- Anotacija podataka}\label{sec:faza2}
-% Iz Faza2-plan.md + annotation/guidelines.md.
 \subsection{Šema oznaka}
-% binarna 1/0 + opcioni pod-tipovi (KJ/PV/EN/SF)
+Svakom naslovu dodeljuje se jedna binarna oznaka: \texttt{1} (klikbejt) ili
+\texttt{0} (regularan). Mehanizmi manipulacije (KJ/PV/EN/SF) korišćeni su kao pomoć
+pri odlučivanju; pod-tipovi su opcioni i nisu sistematski unošeni u finalni skup.
+
 \subsection{Uputstvo za anotaciju}
-% definicije + granični slučajevi + primeri (iz guidelines.md)
+Uputstvo (\texttt{annotation/guidelines.md}) definiše svaki mehanizam, navodi šta
+\emph{nije} klikbejt (uzvičnik, velika slova, velika vest rečena direktno, informativni
+citati, rezultati i izveštaji sa jasnim sadržajem) i daje rešene granične primere.
+Naslov se uvek ocenjuje izolovano, bez otvaranja članka.
+
 \subsection{Kalibracija i međuanotatorska saglasnost (IAA)}
-% kalibracioni skup (220), nezavisna anotacija, Cohen's kappa iz iaa.py
-% TODO: ubaciti finalni kappa i % slaganja
+Pre glavne anotacije, oba anotatora su \emph{nezavisno} označila kalibracioni skup od
+220 naslova radi merenja saglasnosti. Kao mera korišćen je Cohen's $\kappa$ (prikladan
+za dva anotatora; sa dva člana postoji jedan par, pa je grupni prosek jednak tom
+paru). Rezultati su u Tabeli~\ref{tab:iaa}.
+
 \begin{table}[H]\centering
-\caption{Međuanotatorska saglasnost na kalibracionom skupu.}
+\caption{Međuanotatorska saglasnost na kalibracionom skupu.}\label{tab:iaa}
 \begin{tabular}{lr}
 \toprule
 Mera & Vrednost \\
 \midrule
-Kalibracionih parova & TODO \\
-Procentualno slaganje & TODO\,\% \\
-Cohen's kappa & TODO \\
+Kalibracionih parova & 220 / 220 \\
+Procentualno slaganje ($P_o$) & 82{,}7\,\% (182/220) \\
+Cohen's kappa & 0{,}640 \\
+Neslaganja & 38 / 220 (17{,}3\,\%) \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+Postignuti $\kappa = 0{,}640$ prelazi internu ciljanu granicu $\kappa \ge 0{,}6$ i
+spada u opseg \enquote{dobre} saglasnosti. Analiza neslaganja pokazuje
+\emph{dosledan, jednosmeran} pomeraj praga: u 25 od 38 neslaganja (66\,\%) jedan
+anotator je naslov video kao klikbejt, a drugi kao regularan, i to u istom smeru ---
+blaži senzacionalizam i emotivni epiteti (\enquote{za istoriju}, \enquote{šokantno})
+shvataju se različito strogo. Ovakav semantički (a ne površinski) pomeraj tipičan je
+za suptilne granične slučajeve i ne obara $\kappa$ ispod praga. Na osnovu ovih
+slučajeva uvedeno je operativno pravilo: emotivni epiteti sami po sebi nisu dovoljni
+za oznaku 1 --- moraju biti praćeni preuveličavanjem ili uskraćivanjem informacije.
+
 \subsection{Glavna anotacija}
-% 50/50 podela, jednostruka anotacija, rešavanje spornih slučajeva
+Posle kalibracije, preostali naslovi su podeljeni na pola i anotirani jednostruko.
+Preklapajući (sporni) naslovi iz kalibracije rešeni su \emph{adjudikacijom} ---
+usaglašena labela ušla je u finalni skup. Vrednost $\kappa = 0{,}640$ prijavljuje se
+kao mera \emph{nezavisne} saglasnosti, pre adjudikacije.
 
 % ===========================================================================
 \section{Deskriptivna statistika skupa}\label{sec:stat}
-% iz src/annotation/stats.py + src/report/make_figures.py
 \subsection{Raspodela klasa i dužina naslova}
 \begin{figure}[H]\centering
 \figIfExists{raspodela_klasa.png}{0.48\textwidth}\hfill
 \figIfExists{duzina_naslova.png}{0.48\textwidth}
 \caption{Levo: raspodela klasa. Desno: dužina naslova (reči) po klasi.}
 \end{figure}
-% TODO: komentar — balans 1100/1100, da li su klikbejt naslovi duži/kraći itd.
+Finalni skup za obuku je namerno balansiran (1100/1100), čime se uklanja pristrasnost
+klasifikatora prema većinskoj klasi i pojednostavljuje tumačenje metrika. Dužina
+naslova slabo razdvaja klase: klikbejt naslovi su u proseku tek neznatno duži
+(prosečno 9{,}0 reči / 55{,}2 karaktera) od regularnih (8{,}4 reči / 53{,}3 karaktera).
+Praktično preklapanje raspodela dužina znači da puka dužina nije koristan signal ---
+razlika je u \emph{značenju i formi}, a ne u broju reči, što je u skladu sa slabim
+rezultatima modela zasnovanih na vreći reči (Odeljak~\ref{sec:baseline}). Po rubrikama
+su obe klase ravnomerno zastupljene (fudbal, Evroliga, Rolan Garos, Superliga,
+ABA liga\dots), pa rubrika nije izvor pristrasnosti.
 
 % ===========================================================================
 \section{Faza 3 --- Obučavanje i evaluacija modela}\label{sec:faza3}
 
 \subsection{Protokol evaluacije}
-% 10-slojna stratifikovana CV; nested CV za baseline hiperparametre;
-% enkoderski: varijante epoha; dekoderski: ceo skup. Metrike: acc, P/R/F1
-% (fokus klikbejt klasa), macro-F1, ROC-AUC.
+Osnovni i enkoderski modeli ocenjeni su \textbf{10-strukom stratifikovanom unakrsnom
+validacijom}; za osnovne modele hiperparametri su birani \emph{ugnežđenom} unakrsnom
+validacijom (engl.\ \emph{nested CV}) da bi se izbeglo curenje informacija. Da bi
+ocena bila poštena, pretprocesiranje (stemovanje/lematizacija) radi se nad celim
+skupom, ali se vektorizator (vokabular i IDF težine) uči \emph{unutar svakog fold-a}.
+Dekoderski model ocenjen je nad celim skupom (2200). Za sve modele izveštavaju se
+iste metrike: tačnost, preciznost/odziv/F1 sa fokusom na klikbejt klasu, makro-F1 i
+ROC-AUC (gde model daje verovatnoće).
 
 \subsection{Osnovni modeli (LR + Naivni Bajes)}\label{sec:baseline}
-% efekat preprocessinga (lowercasing, stem/lemma) × TF/IDF/TF-IDF × n-gram
+Ispitan je grid varijanti: pretprocesiranje (bez / heuristički stemer / lematizacija),
+ponderisanje obeležja (TF / IDF / TF-IDF / puko brojanje) i opseg n-grama (1--1, 1--2).
+Implementacija se oslanja na \texttt{scikit-learn}~\cite{scikit-learn}, a lematizacija
+na \texttt{classla}~\cite{ljubesic2018classla}.
+Po preporuci profesora ne izbacuju se stop-reči; umesto toga oslanjamo se na
+TF/IDF/TF-IDF ponderisanje.
 \inputIfExists{tables/baseline.tex}
-% TODO: analiza — koja preprocessing/feature varijanta najbolje, zašto.
+Najbolja varijanta je \textbf{multinomijalni naivni Bajes uz stemovanje i TF-IDF
+(1--2 grami)}, sa F1 na klikbejt klasi 0{,}646 i ROC-AUC 0{,}676. Razlike među
+shemama ponderisanja su male: na kratkim naslovima IDF komponenta donosi ograničenu
+korist jer se reči retko ponavljaju, pa puko brojanje nije daleko od TF-IDF.
+Stemovanje pomaže (smanjuje raštrkanost zbog morfologije srpskog), dok bigrami
+donose tek neznatno poboljšanje. Glavni zaključak: pristup zasnovan na vreći reči
+hvata površinske leksičke obrasce, ali teško prepoznaje suptilni klikbejt koji
+zavisi od konteksta i implikacije.
 
 \subsection{Enkoderski LLM (BERTić + mBERT)}\label{sec:encoder}
-% mono vs multi; efekat broja epoha (2/3/4)
+Fino su podešena dva enkoderska modela --- monolingvalni \textbf{BERTić} (za BCMS
+jezike)~\cite{ljubesic2021bertic} i višejezični \textbf{mBERT}~\cite{devlin2019bert}
+--- uz variranje broja epoha (2/3/4) i 10-struku validaciju.
 \inputIfExists{tables/encoder.tex}
-% TODO: analiza — mono vs multi, koliko epoha optimalno, poređenje sa baseline.
+\textbf{Mono $>$ multi:} BERTić nadmašuje mBERT na svim metrikama, što potvrđuje da
+model treniran specifično za srpski (i srodne jezike) bolje hvata jezičke nijanse.
+\textbf{Broj epoha:} 2 epohe su nedovoljne, dok 3--4 epohe daju najbolji i stabilan
+rezultat (F1 0{,}703, tačnost 0{,}704, ROC-AUC do 0{,}788); dalje obučavanje ne
+donosi dobitak (vidi krivu učenja na Slici~\ref{fig:kriva}). U poređenju sa osnovnom
+linijom, čak i slabiji transformer (mBERT, F1 0{,}690) je +0{,}044 iznad najboljeg
+osnovnog modela, a razlika po ROC-AUC-u je još veća (+0{,}11) --- kontekstualni
+modeli znatno bolje razdvajaju klase.
 
-\subsection{Dekoderski LLM (ChatGPT)}\label{sec:decoder}
-% SR vs EN prompt, zero/few-shot, sa/bez definicije; eval na celom skupu
+\begin{figure}[H]\centering
+\figIfExists{kriva_ucenja.png}{0.6\textwidth}
+\caption{Kriva učenja (F1/AUC u funkciji broja epoha) za enkoderske modele.}\label{fig:kriva}
+\end{figure}
+
+\subsection{Dekoderski LLM (Claude)}\label{sec:decoder}
+Dekoderski (generativni) model \textbf{Claude (Haiku)}~\cite{anthropic2024claude}
+primenjen je \emph{bez fino podešavanja}, u režimu zero-shot, nad celim
+skupom.\footnote{U prijavi je naveden ChatGPT; postavka projekta izričito dozvoljava
+i druge dekoderske modele, pa je korišćen Claude (Haiku) kao funkcionalno ekvivalentan
+zatvoreni generativni model dostupan preko API-ja.} Upoređene su dve prompt varijante
+--- na srpskom (SR) i engleskom (EN) jeziku --- obe sa definicijom klikbejta. Odgovori
+se kešuju radi prekida/nastavka i da se ne plaća dvostruko.
 \inputIfExists{tables/decoder.tex}
-% TODO: analiza — SR vs EN, zero vs few-shot, diskusija cene/limita API-ja.
+\textbf{Jezik upita (SR vs EN):} razlika je zanemarljiva (F1 0{,}710 naspram 0{,}715),
+uz neznatnu prednost engleskog prompta. \textbf{Snaga bez obuke:} model bez ijednog
+primera za obuku postiže \emph{najviši F1 na klikbejt klasi} u celom radu (0{,}715),
+blago iznad fino podešenog BERTića (0{,}703). Ograničenja su, međutim, suštinska:
+model vraća \emph{tvrdu} odluku 0/1, pa nema verovatnoća ni ROC-AUC-a; zavisi od
+plaćenog API-ja i dnevnih ograničenja poziva; i nije lokalan. Evaluirane su dve
+prompt varijante (SR/EN, zero-shot, sa definicijom); few-shot i kalibracija ostaju
+za dalji rad.
 
 \subsection{Uporedni pregled svih modela}\label{sec:poredjenje}
 \inputIfExists{tables/poredjenje.tex}
@@ -122,11 +250,27 @@ Cohen's kappa & TODO \\
 \figIfExists{poredjenje_modela.png}{0.7\textwidth}
 \caption{F1 (klikbejt klasa) najboljih varijanti po tipu modela.}
 \end{figure}
-% TODO: glavni nalaz — koji pristup pobeđuje i zašto.
+Svi modeli nadmašuju osnovnu liniju. Po \emph{F1 na klikbejt klasi} vodi dekoderski
+Claude (0{,}715), ali po \emph{tačnosti} i kalibrisanim verovatnoćama (ROC-AUC)
+najbolji je BERTić (0{,}704 / 0{,}788). Drugim rečima, ne postoji jedinstveni
+pobednik: dekoder je najbolji kada nema podataka za obuku, a enkoder kada su potrebne
+pouzdane verovatnoće i lokalno, besplatno izvršavanje.
 
 % ===========================================================================
 \section{Zaključak}\label{sec:zakljucak}
-% šta najbolje radi, ograničenja (domen, jedan izvor, veličina skupa), dalji rad.
+Pokazali smo da je detekcija klikbejt sportskih naslova na srpskom izvodljiva i da
+izbor modela zavisi od ograničenja primene. \textbf{Za produkciju} preporučujemo
+\textbf{BERTić}: mali, besplatan, lokalan, daje kalibrisane verovatnoće (ROC-AUC
+0{,}788) i najbolju tačnost, uz najbolji odnos cena/kvalitet. \textbf{Kada nema
+podataka za obuku}, dekoderski model (Claude, zero-shot) je konkurentan i postiže
+najviši F1 bez ijednog označenog primera, po cenu plaćenog API-ja i odsustva
+verovatnoća. Osnovni modeli ostaju korisni kao brza, transparentna referenca.
+
+\textbf{Ograničenja.} Skup je relativno mali (2200), iz jednog domena (sport) i sa
+jednog izvora (SportKlub); dekoder daje samo tvrde labele (bez AUC-a); evaluirane su
+dve prompt varijante. \textbf{Dalji rad.} Više domena i izvora, veći skup, few-shot
+prompting i kalibracija dekodera, ansambl (BERTić + dekoder) i analiza tipova grešaka
+po pod-tipovima klikbejta (KJ/PV/EN/SF).
 
 % ===========================================================================
 \bibliographystyle{plain}

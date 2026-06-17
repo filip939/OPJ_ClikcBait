@@ -1,10 +1,30 @@
 \begin{table}[H]\centering
-\caption{Osnovni modeli --- rezultati.}\label{tab:baseline}
-\begin{tabular}{l}
+\caption{Osnovni modeli --- efekat preprocessinga i odlika.}\label{tab:baseline}
+\begin{tabular}{llllrrr}
 \toprule
-Status \\
+Model & Norm. & Šema & n-gram & F1$_{kb}$ & Acc. & AUC \\
 \midrule
-Pokreni Fazu 3a (run\_baseline.py). \\
+mnb & stem & tfidf & 1-2 & 0.646$\pm$0.045 & 0.622$\pm$0.050 & 0.676$\pm$0.059 \\
+mnb & stem & bow & 1-2 & 0.642$\pm$0.048 & 0.625$\pm$0.050 & 0.678$\pm$0.060 \\
+mnb & stem & tf & 1-2 & 0.642$\pm$0.045 & 0.622$\pm$0.047 & 0.677$\pm$0.059 \\
+mnb & stem & tf & 1-1 & 0.641$\pm$0.050 & 0.624$\pm$0.051 & 0.682$\pm$0.060 \\
+mnb & lemma & tf & 1-2 & 0.641$\pm$0.038 & 0.632$\pm$0.038 & 0.686$\pm$0.051 \\
+mnb & lemma & bow & 1-2 & 0.638$\pm$0.034 & 0.631$\pm$0.032 & 0.681$\pm$0.052 \\
+mnb & lemma & tf & 1-1 & 0.637$\pm$0.046 & 0.631$\pm$0.044 & 0.684$\pm$0.056 \\
+mnb & lemma & tfidf & 1-2 & 0.636$\pm$0.034 & 0.627$\pm$0.033 & 0.679$\pm$0.048 \\
+mnb & lemma & bow & 1-1 & 0.634$\pm$0.038 & 0.630$\pm$0.033 & 0.681$\pm$0.056 \\
+mnb & stem & tfidf & 1-1 & 0.634$\pm$0.056 & 0.613$\pm$0.055 & 0.675$\pm$0.063 \\
+mnb & stem & bow & 1-1 & 0.632$\pm$0.052 & 0.619$\pm$0.052 & 0.678$\pm$0.062 \\
+logreg & lemma & tf & 1-1 & 0.632$\pm$0.054 & 0.637$\pm$0.049 & 0.677$\pm$0.057 \\
+mnb & lemma & tfidf & 1-1 & 0.631$\pm$0.044 & 0.620$\pm$0.043 & 0.677$\pm$0.052 \\
+logreg & lemma & idf & 1-1 & 0.630$\pm$0.041 & 0.629$\pm$0.037 & 0.675$\pm$0.052 \\
+logreg & lemma & tf & 1-2 & 0.629$\pm$0.050 & 0.631$\pm$0.047 & 0.679$\pm$0.054 \\
+logreg & lemma & tfidf & 1-1 & 0.627$\pm$0.060 & 0.635$\pm$0.050 & 0.677$\pm$0.057 \\
+logreg & lemma & idf & 1-2 & 0.626$\pm$0.042 & 0.627$\pm$0.037 & 0.676$\pm$0.050 \\
+logreg & lemma & tfidf & 1-2 & 0.625$\pm$0.041 & 0.630$\pm$0.038 & 0.682$\pm$0.053 \\
+mnb & none & tf & 1-1 & 0.624$\pm$0.045 & 0.610$\pm$0.044 & 0.662$\pm$0.056 \\
+mnb & none & tfidf & 1-1 & 0.623$\pm$0.036 & 0.602$\pm$0.037 & 0.654$\pm$0.053 \\
 \bottomrule
 \end{tabular}
+\\[2pt]\footnotesize Prikazano top 20 (po F1 klikbejt klase), nested 10-fold CV.
 \end{table}

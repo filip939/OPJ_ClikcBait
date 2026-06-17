@@ -1,10 +1,13 @@
 \begin{table}[H]\centering
-\caption{Uporedni pregled modela.}\label{tab:poredjenje}
-\begin{tabular}{l}
+\caption{Uporedni pregled --- najbolja varijanta po tipu modela.}\label{tab:poredjenje}
+\begin{tabular}{lrrr}
 \toprule
-Status \\
+Najbolji po tipu & F1$_{kb}$ & Acc. & AUC \\
 \midrule
-Pokreni Fazu 3 (baseline + enkoderski + dekoderski). \\
+Baseline (mnb, tfidf) & 0.646$\pm$0.045 & 0.622$\pm$0.050 & 0.676$\pm$0.059 \\
+Enkoderski (bertic) & 0.703$\pm$0.034 & 0.704$\pm$0.035 & 0.785$\pm$0.036 \\
+Enkoderski (mbert) & 0.690$\pm$0.042 & 0.687$\pm$0.041 & 0.753$\pm$0.042 \\
+Claude (en\_zero\_def) & 0.715 & 0.691 & — \\
 \bottomrule
 \end{tabular}
 \end{table}

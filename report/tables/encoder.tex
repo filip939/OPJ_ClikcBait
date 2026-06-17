@@ -1,10 +1,16 @@
 \begin{table}[H]\centering
-\caption{Enkoderski modeli --- rezultati.}\label{tab:encoder}
-\begin{tabular}{l}
+\caption{Enkoderski LLM --- BERTić vs mBERT, varijante epoha.}\label{tab:encoder}
+\begin{tabular}{lrrrrrr}
 \toprule
-Status \\
+Model & Epohe & F1$_{kb}$ & Acc. & P$_{kb}$ & R$_{kb}$ & AUC \\
 \midrule
-Pokreni Fazu 3b (finetune.py) na Colab-u. \\
+bertic & 2 & 0.681$\pm$0.042 & 0.680$\pm$0.034 & 0.678$\pm$0.036 & 0.688$\pm$0.069 & 0.760$\pm$0.036 \\
+bertic & 3 & 0.703$\pm$0.034 & 0.704$\pm$0.035 & 0.707$\pm$0.047 & 0.703$\pm$0.050 & 0.785$\pm$0.036 \\
+bertic & 4 & 0.703$\pm$0.034 & 0.702$\pm$0.035 & 0.703$\pm$0.039 & 0.704$\pm$0.038 & 0.788$\pm$0.030 \\
+mbert & 2 & 0.651$\pm$0.042 & 0.664$\pm$0.034 & 0.678$\pm$0.040 & 0.629$\pm$0.063 & 0.736$\pm$0.042 \\
+mbert & 3 & 0.690$\pm$0.042 & 0.687$\pm$0.041 & 0.685$\pm$0.045 & 0.699$\pm$0.058 & 0.753$\pm$0.042 \\
+mbert & 4 & 0.682$\pm$0.041 & 0.691$\pm$0.036 & 0.703$\pm$0.042 & 0.664$\pm$0.054 & 0.755$\pm$0.038 \\
 \bottomrule
 \end{tabular}
+\\[2pt]\footnotesize 10-slojna stratifikovana CV.
 \end{table}
