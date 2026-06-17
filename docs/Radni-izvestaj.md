@@ -94,23 +94,26 @@ Izveštaj: `results/faza3a_baseline_izvestaj.md`, sirovo: `results/baseline_resu
 
 ### 3b — Enkoderski modeli (Colab, T4 GPU) ✅
 - **BERTić** (`classla/bcms-bertic`, monolingvalni BCMS) + **mBERT** (`bert-base-multilingual-cased`, multilingvalni).
-- Fine-tuning, **10-fold stratifikovana CV**, varijante **epoha {2, 3, 4}**, batch 64, max_len 64, lr 2e-5.
-- HuggingFace Transformers (Trainer). Pokrenuto na besplatnom Colab T4.
+- Fine-tuning, **10-fold stratifikovana CV**, varijante **epoha {2, 3, 4}** kao **ZASEBNI fine-tuning-zi** (svaki sa svojim LR rasporedom — po zahtevu), batch 64, max_len 64, lr 2e-5.
+- HuggingFace Transformers (Trainer). Pokrenuto na besplatnom Colab T4 (~40-60 min/2 modela).
 
 **Rezultati (mean preko 10 foldova):**
 | Model | Epohe | F1(klikbejt) | Acc | ROC-AUC |
 |---|---|---|---|---|
-| **BERTić** | **2** | 0.695 | **0.713** | **0.795** |
-| BERTić | 3 / 4 | 0.687 / 0.677 | … | 0.795 |
-| **mBERT** | **2** | **0.707** | 0.690 | 0.757 |
-| mBERT | 3 / 4 | 0.676 / 0.666 | … | 0.759 |
+| BERTić | 2 | 0.681 | 0.680 | 0.760 |
+| **BERTić** | **3** | **0.703** | 0.704 | 0.785 |
+| **BERTić** | **4** | 0.703 | 0.702 | **0.788** |
+| mBERT | 2 | 0.651 | 0.664 | 0.736 |
+| **mBERT** | **3** | **0.690** | 0.687 | 0.753 |
+| mBERT | 4 | 0.682 | 0.691 | 0.755 |
 
 Izveštaj: `results/faza3b_encoder_izvestaj.md`, sirovo: `results/encoder_{bertic,mbert}_results.csv`.
 
 **Q&A:**
-- *Koliko epoha?* — **2 epohe najbolje** za oba; sa 3/4 F1 i odziv opadaju (overfitting na malom skupu). → kratak fine-tuning optimalan.
-- *Mono vs multi?* — mBERT ima viši F1 (0.707), ali **BERTić ukupno jači i stabilniji** (viši AUC 0.795, accuracy, preciznost); monolingvalni model uravnoteženiji za srpski.
-- *Odnos prema baseline-u?* — Oba transformera **ubedljivo nadmašuju baseline** (AUC +0.12 kod BERTića), što je glavna teza: bag-of-words ne hvata suptilni klikbejt, kontekstualni enkoderi ga hvataju.
+- *Koliko epoha?* — **3–4 epohe najbolje** za oba; sa samo 2 epohe model je **nedotreniran** (najniži F1/AUC). → potrebno bar 3 epohe.
+- *Mono vs multi?* — **BERTić nadmašuje mBERT na svim metrikama** u najboljoj tački (F1 0.703 vs 0.690, AUC 0.788 vs 0.753); monolingvalni BCMS model očekivano bolji za srpski.
+- *Odnos prema baseline-u?* — Oba transformera **ubedljivo nadmašuju baseline** (AUC +0.11 kod BERTića), glavna teza: bag-of-words ne hvata suptilni klikbejt, kontekstualni enkoderi ga hvataju.
+- *Zašto je prvi run bio sumnjivo kratak?* — Prva verzija je koristila približnu optimizaciju (jedan trening do max epoha + eval po epohi); davala je obrnut trend (2 epohe „najbolje") zbog LR-rasporeda. Zamenjeno zasebnim fine-tuningom po epohi (ispravno, ~2× duže).
 
 ### 3c — Dekoderski model (Anthropic Claude API) 🔄 U TOKU
 - Model: **Claude (`claude-haiku-4-5`)** — bez fine-tuninga (zatvoren model) → samo evaluacija na **celom skupu**.
@@ -164,7 +167,7 @@ export ANTHROPIC_API_KEY=sk-ant-...
 
 - **Sudar imena:** folder `src/transformers` se zvao isto kao HF biblioteka → `finetune.py` ima self-healing import (sređuje `sys.path`).
 - **Trainer API:** novi `transformers` traži `processing_class=` umesto `tokenizer=` → rešeno detekcijom verzije.
-- **Optimizacija 3b:** treniramo jednom do max epoha i evaluiramo posle svake (eval_strategy="epoch") umesto zasebnog treninga po epohi → ~2× brže, iste brojke.
+- **Epoha-varijante 3b:** zaseban fine-tuning po epohi (default, `--separate-epochs` logika) — verno zahtevu. Ranija „brza" varijanta (jedan trening + eval po epohi) je odbačena za rad: davala je pogrešan (obrnut) trend zbog LR-rasporeda; ostaje samo kao `--fast-epochs` za probu.
 - **Rate-limit (Claude):** nov nalog 5 RPM (presporo) → posle uplate kredita 1000 RPM; throttle `--rpm` u skripti.
 
 ---
