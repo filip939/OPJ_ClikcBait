@@ -100,15 +100,19 @@ def _get_classla():
     if _CLASSLA_PIPE is None:
         import classla  # type: ignore
 
+        # lematizator za srpski koristi POS oznake (lemma_pretag) → pos je
+        # obavezan u pipeline-u, inače KeyError: 'pos_model_path'.
         try:
             _CLASSLA_PIPE = classla.Pipeline(
-                "sr", processors="tokenize,lemma", use_gpu=False, verbose=False
+                "sr", processors="tokenize,pos,lemma", use_gpu=False,
+                verbose=False
             )
         except Exception:
             # model nije preuzet — preuzmi pa probaj ponovo
             classla.download("sr")
             _CLASSLA_PIPE = classla.Pipeline(
-                "sr", processors="tokenize,lemma", use_gpu=False, verbose=False
+                "sr", processors="tokenize,pos,lemma", use_gpu=False,
+                verbose=False
             )
     return _CLASSLA_PIPE
 

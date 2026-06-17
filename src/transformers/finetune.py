@@ -28,7 +28,22 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "src"))
+_SRC = str(ROOT / "src")
+_SELF = str(Path(__file__).resolve().parent)  # .../src/transformers — ISTO IME kao HF paket!
+
+# --- sprečavanje sudara imena sa HuggingFace bibliotekom 'transformers' -------
+# Ovaj folder se zove 'transformers'. Ako bi 'src' (ili ovaj folder) bio na
+# POČETKU sys.path, `import transformers` bi učitao OVAJ lokalni paket umesto
+# HF biblioteke (ImportError: cannot import name 'AutoModelForSequenceClassification').
+# Zato: (1) skloni '', ovaj folder i 'src' sa početka putanje; (2) 'src' dodaj na
+# KRAJ (da se 'baseline' i dalje nalazi); (3) izbaci eventualno već uvezen lokalni
+# 'transformers' iz keša modula. Ovo radi bez obzira kako se skripta pokrene.
+sys.path[:] = [p for p in sys.path if p not in ("", _SELF, _SRC)]
+sys.path.append(_SRC)
+for _m in [k for k in list(sys.modules) if k == "transformers" or k.startswith("transformers.")]:
+    _f = getattr(sys.modules[_m], "__file__", None) or ""
+    if _f.startswith(_SELF):
+        del sys.modules[_m]
 
 from baseline import common  # noqa: E402  (zajedničke metrike/IO)
 

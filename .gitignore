@@ -1,1 +1,14 @@
+# Virtualno okruženje — NE ide u git (8000+ fajlova, bloata klon)
+.venv/
 
+# macOS smeće
+.DS_Store
+**/.DS_Store
+
+# Python keš
+__pycache__/
+*.pyc
+
+# Privremeni izlazi treninga / keš dekodera
+results/_hf_tmp/
+results/decoder_cache/

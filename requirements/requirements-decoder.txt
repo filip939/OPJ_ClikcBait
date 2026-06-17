@@ -1,4 +1,7 @@
-# Faza 3c — dekoderski LLM (ChatGPT). Samo API pozivi (bez GPU-a).
-openai>=1.0
+# Faza 3c — dekoderski LLM. Samo API pozivi (bez GPU-a).
+# Besplatna opcija (preporučeno): Google Gemini Flash — google-genai SDK.
+google-genai>=1.0
+# Plaćena opcija (ChatGPT): otkomentariši ako koristiš chatgpt_eval.py
+# openai>=1.0
 scikit-learn>=1.3
 numpy
