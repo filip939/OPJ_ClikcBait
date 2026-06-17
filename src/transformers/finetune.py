@@ -94,68 +94,85 @@ def run_cv(model_key, epochs_list, n_folds, batch_size, lr, max_len, seed,
     outer = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=seed)
     compute_metrics = build_compute_metrics()
 
+    # OPTIMIZACIJA: umesto zasebnog treninga za svaku epohu-varijantu, treniramo
+    # JEDNOM do max(epochs) i evaluiramo posle SVAKE epohe (eval_strategy="epoch").
+    # Model je posle N epoha u istom stanju kao da smo zaustavili na N → brojke su
+    # identične, a posla je ~2× manje (10×4 umesto 10×(2+3+4) epoha po modelu).
+    target_epochs = sorted(set(int(e) for e in epochs_list))
+    max_epochs = max(target_epochs)
+    per_epoch = {e: [] for e in target_epochs}  # epoch -> lista per-fold metrika
+
+    for fold, (tr, te) in enumerate(outer.split(texts, labels)):
+        ds_tr = Dataset.from_dict({"text": list(texts[tr]),
+                                   "label": [int(x) for x in labels[tr]]})
+        ds_te = Dataset.from_dict({"text": list(texts[te]),
+                                   "label": [int(x) for x in labels[te]]})
+        ds_tr = ds_tr.map(tokenize, batched=True)
+        ds_te = ds_te.map(tokenize, batched=True)
+
+        model = AutoModelForSequenceClassification.from_pretrained(
+            hf_id, num_labels=2)
+        targs = TrainingArguments(
+            output_dir=str(ROOT / "results" / "_hf_tmp" /
+                           f"{model_key}_f{fold}"),
+            num_train_epochs=max_epochs,
+            per_device_train_batch_size=batch_size,
+            per_device_eval_batch_size=batch_size * 2,
+            learning_rate=lr,
+            seed=seed,
+            eval_strategy="epoch",   # evaluiraj posle SVAKE epohe
+            save_strategy="no",
+            logging_steps=50,
+            report_to=[],
+            fp16=torch.cuda.is_available(),
+        )
+        tr_kwargs = dict(
+            model=model, args=targs, train_dataset=ds_tr,
+            eval_dataset=ds_te, compute_metrics=compute_metrics,
+            data_collator=DataCollatorWithPadding(tokenizer),
+        )
+        # 'tokenizer=' je u novijim transformers verzijama preimenovan u
+        # 'processing_class=' (stari naziv → TypeError). Biramo po verziji.
+        _params = inspect.signature(Trainer.__init__).parameters
+        if "processing_class" in _params:
+            tr_kwargs["processing_class"] = tokenizer
+        elif "tokenizer" in _params:
+            tr_kwargs["tokenizer"] = tokenizer
+        trainer = Trainer(**tr_kwargs)
+        t0 = time.time()
+        trainer.train()
+
+        # iz log_history izvuci eval metrike po epohi (epoch=1.0, 2.0, ...)
+        evals = {}
+        for rec in trainer.state.log_history:
+            if "eval_f1_kb" in rec:
+                ep = int(round(rec["epoch"]))
+                evals[ep] = {k.replace("eval_", ""): v
+                             for k, v in rec.items() if k.startswith("eval_")}
+        for e in target_epochs:
+            if e in evals:
+                per_epoch[e].append(evals[e])
+        got = ", ".join(f"{e}ep:{evals[e]['f1_kb']:.3f}"
+                        for e in target_epochs if e in evals)
+        print(f"  fold={fold+1}/{n_folds} ({time.time()-t0:.0f}s)  {got}")
+        del model, trainer
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
+    keys = ["accuracy", "precision_kb", "recall_kb", "f1_kb", "f1_macro",
+            "roc_auc"]
     rows = []
-    for n_epochs in epochs_list:
-        fold_metrics = []
-        for fold, (tr, te) in enumerate(outer.split(texts, labels)):
-            ds_tr = Dataset.from_dict({"text": list(texts[tr]),
-                                       "label": [int(x) for x in labels[tr]]})
-            ds_te = Dataset.from_dict({"text": list(texts[te]),
-                                       "label": [int(x) for x in labels[te]]})
-            ds_tr = ds_tr.map(tokenize, batched=True)
-            ds_te = ds_te.map(tokenize, batched=True)
-
-            model = AutoModelForSequenceClassification.from_pretrained(
-                hf_id, num_labels=2)
-            targs = TrainingArguments(
-                output_dir=str(ROOT / "results" / "_hf_tmp" /
-                               f"{model_key}_e{n_epochs}_f{fold}"),
-                num_train_epochs=n_epochs,
-                per_device_train_batch_size=batch_size,
-                per_device_eval_batch_size=batch_size * 2,
-                learning_rate=lr,
-                seed=seed,
-                eval_strategy="no",
-                save_strategy="no",
-                logging_steps=50,
-                report_to=[],
-                fp16=torch.cuda.is_available(),
-            )
-            tr_kwargs = dict(
-                model=model, args=targs, train_dataset=ds_tr,
-                eval_dataset=ds_te, compute_metrics=compute_metrics,
-                data_collator=DataCollatorWithPadding(tokenizer),
-            )
-            # 'tokenizer=' je u novijim transformers verzijama preimenovan u
-            # 'processing_class=' (stari naziv → TypeError). Biramo po verziji.
-            _params = inspect.signature(Trainer.__init__).parameters
-            if "processing_class" in _params:
-                tr_kwargs["processing_class"] = tokenizer
-            elif "tokenizer" in _params:
-                tr_kwargs["tokenizer"] = tokenizer
-            trainer = Trainer(**tr_kwargs)
-            t0 = time.time()
-            trainer.train()
-            m = trainer.evaluate()
-            m = {k.replace("eval_", ""): v for k, v in m.items()}
-            fold_metrics.append(m)
-            print(f"  epochs={n_epochs} fold={fold+1}/{n_folds} "
-                  f"F1_kb={m.get('f1_kb', float('nan')):.3f} "
-                  f"({time.time()-t0:.0f}s)")
-            del model, trainer
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-
-        keys = ["accuracy", "precision_kb", "recall_kb", "f1_kb", "f1_macro",
-                "roc_auc"]
-        row = {"model": model_key, "epochs": n_epochs, "folds": n_folds}
+    for e in target_epochs:
+        row = {"model": model_key, "epochs": e, "folds": n_folds}
         for k in keys:
-            vals = [fm[k] for fm in fold_metrics if k in fm]
+            vals = [fm[k] for fm in per_epoch[e] if k in fm]
             row[k] = common.fmt_mean_std(vals)
         rows.append(row)
-        print(f"➡️  epochs={n_epochs}: F1_kb={row['f1_kb']}")
+        print(f"➡️  epochs={e}: F1_kb={row['f1_kb']}")
 
     common.write_results_csv(rows, out_path)
+    abs_out = Path(out_path).resolve()
+    print(f"\n✅ {model_key} GOTOVO → REZULTATI: {abs_out}")
     return rows
 
 
