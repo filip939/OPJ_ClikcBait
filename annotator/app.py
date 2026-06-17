@@ -15,9 +15,7 @@ Pa otvori:  http://localhost:8000
 
 Kad zavrsis sa anotacijom, ceo folder annotator/ se moze obrisati — podaci
 ostaju u data/.
-git pull https://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@github.com/FilippNikolic/OPJ_ClikcBait.git
-git push https://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@github.com/FilippNikolic/OPJ_ClikcBait.git
- 
+
  """
 import csv
 
