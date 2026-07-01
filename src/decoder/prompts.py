@@ -79,11 +79,15 @@ def build_prompt(lang: str, shots: str, with_def: bool):
 
 
 # kanonski skup varijanti koje evaluiramo
+# Pun 2×2×2 grid (jezik × shots × definicija) → 8 varijanti. Few-shot ide i
+# SA i BEZ definicije da bismo izmerili da li primeri sami nose dovoljno signala.
 VARIANTS = [
     {"id": "sr_zero_nodef", "lang": "sr", "shots": "zero", "with_def": False},
     {"id": "sr_zero_def",   "lang": "sr", "shots": "zero", "with_def": True},
+    {"id": "sr_few_nodef",  "lang": "sr", "shots": "few",  "with_def": False},
     {"id": "sr_few_def",    "lang": "sr", "shots": "few",  "with_def": True},
     {"id": "en_zero_nodef", "lang": "en", "shots": "zero", "with_def": False},
     {"id": "en_zero_def",   "lang": "en", "shots": "zero", "with_def": True},
+    {"id": "en_few_nodef",  "lang": "en", "shots": "few",  "with_def": False},
     {"id": "en_few_def",    "lang": "en", "shots": "few",  "with_def": True},
 ]

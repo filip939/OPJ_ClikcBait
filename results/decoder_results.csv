@@ -1,3 +1,9 @@
 model,variant,lang,shots,with_def,n_eval,n_unparsed,new_api_calls,accuracy,precision_kb,recall_kb,f1_kb,f1_macro
-claude-haiku-4-5,en_zero_def,en,zero,True,2200,0,2183,0.691,0.664,0.775,0.715,0.689
-claude-haiku-4-5,sr_zero_def,sr,zero,True,2200,0,2150,0.695,0.676,0.748,0.710,0.694
+claude-haiku-4-5,en_zero_def,en,zero,True,2200,0,0,0.691,0.664,0.775,0.715,0.689
+claude-haiku-4-5,sr_zero_def,sr,zero,True,2200,0,0,0.695,0.676,0.748,0.710,0.694
+claude-haiku-4-5,en_zero_nodef,en,zero,False,2200,0,2200,0.693,0.672,0.752,0.710,0.692
+claude-haiku-4-5,sr_zero_nodef,sr,zero,False,2200,0,630,0.681,0.659,0.749,0.701,0.679
+claude-haiku-4-5,sr_few_nodef,sr,few,False,2200,0,2180,0.671,0.746,0.520,0.613,0.664
+claude-haiku-4-5,en_few_def,en,few,True,2200,0,2180,0.673,0.751,0.516,0.612,0.665
+claude-haiku-4-5,sr_few_def,sr,few,True,2200,0,2200,0.670,0.754,0.504,0.604,0.660
+claude-haiku-4-5,en_few_nodef,en,few,False,2200,0,2160,0.649,0.785,0.411,0.539,0.628

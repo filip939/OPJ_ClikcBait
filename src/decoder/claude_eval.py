@@ -29,7 +29,9 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -63,7 +65,23 @@ def classify_one(client, model, system, user_prompt):
     return text, (u.input_tokens, u.output_tokens)
 
 
-def run_variant(client, model, variant, texts, labels, limit, holdout, min_interval):
+def _classify_with_retry(client, model, system, user, naslov):
+    """Jedan naslov sa retry-jem (SDK i sam retry-uje 429). Vrati
+    (msg, (in_tok, out_tok), ok)."""
+    for attempt in range(5):
+        try:
+            msg, (ti, to) = classify_one(client, model, system, user)
+            return msg, (ti, to), True
+        except Exception as e:  # rate limit / transient
+            if attempt == 4:
+                print(f"\n   ⚠️  neuspeh '{naslov[:40]}…': {e}")
+                return "", (0, 0), False
+            time.sleep(min(2 ** attempt * 2, 30))
+    return "", (0, 0), False
+
+
+def run_variant(client, model, variant, texts, labels, limit, holdout,
+                min_interval, workers):
     system, template = prompts.build_prompt(
         variant["lang"], variant["shots"], variant["with_def"])
     cache_path = CACHE_DIR / f"{model}__{variant['id']}.jsonl"
@@ -77,49 +95,55 @@ def run_variant(client, model, variant, texts, labels, limit, holdout, min_inter
     if limit:
         pairs = pairs[:limit]
 
-    y_true, y_pred = [], []
-    n_in = n_out = n_calls = skipped = 0
-    last_call = 0.0
-    for i, (naslov, lab) in enumerate(pairs):
-        if naslov in cache:
-            pred = cache[naslov]["pred"]
-        else:
-            user = template.format(naslov=naslov)
-            msg, ok = "", False
-            for attempt in range(5):
-                if min_interval:
-                    wait = min_interval - (time.time() - last_call)
-                    if wait > 0:
-                        time.sleep(wait)
-                try:
-                    msg, (ti, to) = classify_one(client, model, system, user)
-                    last_call = time.time()
-                    n_in += ti
-                    n_out += to
-                    n_calls += 1
-                    ok = True
-                    break
-                except Exception as e:  # rate limit / transient (SDK i sam retry-uje)
-                    last_call = time.time()
-                    if attempt == 4:
-                        print(f"\n   ⚠️  neuspeh '{naslov[:40]}…': {e}")
-                    else:
-                        time.sleep(min(2 ** attempt * 2, 30))
-            pred = parse_label(msg) if ok else None
+    # keširane predikcije uzmi odmah; ostalo pošalji (paralelno) na API
+    preds = {n: cache[n]["pred"] for n, _ in pairs if n in cache}
+    todo = [(n, lab) for n, lab in pairs if n not in cache]
+
+    n_in = n_out = n_calls = 0
+    done = 0
+    lock = threading.Lock()
+
+    def work(item):
+        nonlocal n_in, n_out, n_calls, done
+        naslov, lab = item
+        user = template.format(naslov=naslov)
+        msg, (ti, to), ok = _classify_with_retry(client, model, system, user,
+                                                  naslov)
+        pred = parse_label(msg) if ok else None
+        with lock:  # keš i brojači su deljeni -> serijalizuj upis
+            if ok:
+                n_in += ti
+                n_out += to
+                n_calls += 1
             if pred is not None:
+                preds[naslov] = pred
                 common.append_jsonl(
                     {"naslov": naslov, "true": lab, "pred": pred, "raw": msg},
                     cache_path)
-        if pred is None:
+            done += 1
+            if done % 50 == 0:
+                sys.stdout.write(f"\r   {variant['id']}: {done}/{len(todo)} "
+                                 f"novih (workers={workers})")
+                sys.stdout.flush()
+
+    if todo:
+        if workers <= 1:
+            for it in todo:
+                work(it)
+        else:
+            with ThreadPoolExecutor(max_workers=workers) as ex:
+                list(ex.map(work, todo))
+    print()
+
+    # sastavi metrike u originalnom redosledu para
+    y_true, y_pred, skipped = [], [], 0
+    for naslov, lab in pairs:
+        p = preds.get(naslov)
+        if p is None:
             skipped += 1
             continue
         y_true.append(lab)
-        y_pred.append(pred)
-        if (i + 1) % 50 == 0:
-            sys.stdout.write(f"\r   {variant['id']}: {i+1}/{len(pairs)} "
-                             f"(novih: {n_calls}, preskočeno: {skipped})")
-            sys.stdout.flush()
-    print()
+        y_pred.append(p)
 
     m = common.compute_metrics(y_true, y_pred) if y_true else {}
     row = {"model": model, "variant": variant["id"], "lang": variant["lang"],
@@ -142,6 +166,8 @@ def main():
     ap.add_argument("--rpm", type=float, default=0,
                     help="opcioni throttle (NOVIH zahteva/min); 0 = bez (plaćeni "
                          "tier ima visoke limite, SDK i sam retry-uje 429)")
+    ap.add_argument("--workers", type=int, default=10,
+                    help="broj paralelnih API zahteva (1 = sekvencijalno)")
     ap.add_argument("--holdout-fewshot", action="store_true", default=True)
     ap.add_argument("--out", default=str(common.RESULTS / "decoder_results.csv"))
     args = ap.parse_args()
@@ -170,7 +196,8 @@ def main():
     for v in variants:
         print(f"\n=== {v['id']} ===")
         row, (ti, to) = run_variant(client, args.model, v, texts, labels,
-                                    args.limit, args.holdout_fewshot, min_interval)
+                                    args.limit, args.holdout_fewshot,
+                                    min_interval, args.workers)
         rows.append(row)
         tot_in += ti
         tot_out += to
